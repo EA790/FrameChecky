@@ -1,0 +1,6 @@
+{
+  "name": "FrameCheck",
+  "description": "Native Android hardware scanner and mobile game FPS compatibility estimator using /proc/cpuinfo, ActivityManager RAM detection, and local game benchmarks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

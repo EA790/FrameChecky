@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">FrameCheck</string>
+    <string name="hardware_scan_title">Device Telemetry</string>
+    <string name="hardware_rescan">Re-scan hardware</string>
+    <string name="search_games_hint">Search games or genres…</string>
+    <string name="clear_search">Clear search</string>
+    <string name="no_games_found">No matching games found</string>
+    <string name="no_games_found_subtitle">Try another title or switch the FPS verdict filter.</string>
+</resources>
