@@ -31,4 +31,5 @@ If you find a bug or have an idea for a feature, just open an issue. I'm open to
 MIT License. Do whatever you want with it.
 
 ---
-*Built with Kotlin and too much coffee.*
+*Built with Kotlin and too much free time.
+اسبانيا
