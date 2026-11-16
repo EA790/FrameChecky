@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "GameVoteSummary": {
+      "title": "GameVoteSummary",
+      "description": "Aggregate community FPS compatibility vote counts for a single game.",
+      "type": "object",
+      "properties": {
+        "gameId": {
+          "type": "string",
+          "description": "Game identifier matching games.json."
+        },
+        "runsGreatCount": {
+          "type": "integer",
+          "description": "Total number of users who voted Runs Great."
+        },
+        "lagsCount": {
+          "type": "integer",
+          "description": "Total number of users who voted Lags."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest vote update (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["gameId", "runsGreatCount", "lagsCount", "updatedAt"]
+    },
+    "UserGameVote": {
+      "title": "UserGameVote",
+      "description": "Individual authenticated user's compatibility vote for a specific game.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the voter."
+        },
+        "gameId": {
+          "type": "string",
+          "description": "Game identifier matching the parent document."
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["runs_great", "lags"],
+          "description": "User vote verdict: runs_great or lags."
+        },
+        "deviceSoc": {
+          "type": "string",
+          "description": "Detected hardware/SoC name of the voter's device."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the vote was first cast (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the vote was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "gameId", "verdict", "deviceSoc", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/game_votes/{gameId}": {
+      "schema": { "$ref": "#/entities/GameVoteSummary" },
+      "description": "Aggregate community verdict counts per game."
+    },
+    "/game_votes/{gameId}/votes/{userId}": {
+      "schema": { "$ref": "#/entities/UserGameVote" },
+      "description": "Per-user vote document keyed by Firebase Auth UID."
+    }
+  }
+}

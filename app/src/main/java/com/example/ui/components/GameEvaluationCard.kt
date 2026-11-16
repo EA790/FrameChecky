@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.example.model.DeviceSpecs
 import com.example.model.GameEvaluation
 import com.example.model.GameVerdict
+import com.example.ui.theme.CarbonBlack
 import com.example.ui.theme.CharcoalCard
 import com.example.ui.theme.ElevatedChip
 import com.example.ui.theme.SubtleBorder
@@ -49,6 +49,8 @@ import com.example.ui.theme.VerdictPlayableContainer
 import com.example.ui.theme.VerdictUnsupportedColor
 import com.example.ui.theme.VerdictUnsupportedContainer
 import java.util.Locale
+
+private val CardSharpShape = RoundedCornerShape(2.dp)
 
 @Composable
 fun GameEvaluationCard(
@@ -71,11 +73,11 @@ fun GameEvaluationCard(
   Card(
     onClick = onClick,
     modifier = modifier.fillMaxWidth().testTag("game_card_${game.id}"),
-    shape = RoundedCornerShape(16.dp),
+    shape = CardSharpShape,
     colors = CardDefaults.cardColors(containerColor = CharcoalCard),
     border = BorderStroke(1.dp, SubtleBorder),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
       Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -96,13 +98,13 @@ fun GameEvaluationCard(
           ) {
             Surface(
               color = ElevatedChip,
-              shape = RoundedCornerShape(6.dp),
+              shape = CardSharpShape,
             ) {
               Text(
                 text = game.genre,
                 style = MaterialTheme.typography.labelSmall,
                 color = TextSecondary,
-                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
               )
             }
             Text(
@@ -115,12 +117,12 @@ fun GameEvaluationCard(
 
         Surface(
           color = badgeContainer,
-          shape = RoundedCornerShape(10.dp),
-          border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
+          shape = CardSharpShape,
+          border = BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
           modifier = Modifier.testTag("verdict_badge_${game.id}"),
         ) {
           Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
           ) {
@@ -128,11 +130,11 @@ fun GameEvaluationCard(
               imageVector = badgeIcon,
               contentDescription = evaluation.verdict.label,
               tint = accentColor,
-              modifier = Modifier.size(14.dp),
+              modifier = Modifier.size(13.dp),
             )
             Text(
               text = evaluation.verdict.label,
-              style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
               color = accentColor,
               maxLines = 1,
             )
@@ -140,7 +142,44 @@ fun GameEvaluationCard(
         }
       }
 
-      Spacer(modifier = Modifier.height(14.dp))
+      Spacer(modifier = Modifier.height(12.dp))
+
+      // FPS Prediction Chart Bar (0 - 60 FPS)
+      Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Text(
+            text = "PREDICTED FPS",
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary,
+          )
+          Text(
+            text = "${evaluation.estimatedFps} / 60 FPS",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = accentColor,
+          )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+          modifier =
+            Modifier.fillMaxWidth()
+              .height(6.dp)
+              .background(CarbonBlack)
+        ) {
+          val fpsFraction = (evaluation.estimatedFps / 60f).coerceIn(0.06f, 1f)
+          Box(
+            modifier =
+              Modifier.fillMaxWidth(fpsFraction)
+                .fillMaxHeight()
+                .background(accentColor)
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
 
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -161,14 +200,14 @@ fun GameEvaluationCard(
         )
         HeadroomMiniBar(
           label = "CPU / GPU",
-          specText = "Req ${game.minCpuScore} • Rec ${game.recommendedCpuScore}",
+          specText = "Min ${game.minCpuScore} • Rec ${game.recommendedCpuScore}",
           ratio = minOf(evaluation.cpuHeadroomRatio, evaluation.gpuHeadroomRatio),
           accentColor = accentColor,
           modifier = Modifier.weight(1f),
         )
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(10.dp))
 
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -178,10 +217,10 @@ fun GameEvaluationCard(
         Text(
           text =
             if (evaluation.verdict == GameVerdict.NOT_SUPPORTED) {
-              "Est. ~${evaluation.estimatedFps} FPS • ${evaluation.bottleneck.label}"
+              "${evaluation.bottleneck.label} • Tap for Community Verdict"
             } else {
-              "Preset: ${evaluation.recommendedPreset} • Device RAM ${
-                String.format(Locale.US, "%.1f GB", deviceSpecs.totalRamGb)
+              "${evaluation.recommendedPreset} • Free RAM ${
+                String.format(Locale.US, "%.1f GB", deviceSpecs.freeRamForGamesGb)
               }"
             },
           style = MaterialTheme.typography.bodyMedium,
@@ -230,19 +269,17 @@ private fun HeadroomMiniBar(
         overflow = TextOverflow.Ellipsis,
       )
     }
-    Spacer(modifier = Modifier.height(5.dp))
+    Spacer(modifier = Modifier.height(4.dp))
     Box(
       modifier =
         Modifier.fillMaxWidth()
-          .height(6.dp)
-          .clip(RoundedCornerShape(3.dp))
-          .background(ElevatedChip)
+          .height(5.dp)
+          .background(CarbonBlack)
     ) {
       Box(
         modifier =
           Modifier.fillMaxWidth(fillFraction)
             .fillMaxHeight()
-            .clip(RoundedCornerShape(3.dp))
             .background(accentColor)
       )
     }

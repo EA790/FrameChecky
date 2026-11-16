@@ -6,7 +6,9 @@ import com.example.model.BottleneckType
 import com.example.model.DeviceSpecs
 import com.example.model.GameRequirement
 import com.example.model.GameVerdict
+import com.example.model.GameVoteSummary
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class FrameCheckLogicTest {
@@ -38,11 +40,16 @@ class FrameCheckLogicTest {
       maxFreqGhz = 3.3,
       totalRamGb = ramGb,
       availableRamGb = ramGb * 0.6,
+      freeRamForGamesGb = ramGb * 0.5,
+      systemReservedRamGb = ramGb * 0.5,
       totalRamBytes = (ramGb * 1024 * 1024 * 1024).toLong(),
       glEsVersion = "3.2",
       cpuScore = cpuScore,
       gpuScore = gpuScore,
       compositeScore = (cpuScore + gpuScore) / 2,
+      batteryTempCelsius = 36.5,
+      isThermalThrottling = false,
+      tempSourceLabel = "thermal_zone0/temp",
       cpuInfoSourceDetail = "/proc/cpuinfo",
     )
 
@@ -77,6 +84,21 @@ class FrameCheckLogicTest {
 
     assertEquals("Qualcomm Technologies, Inc SM8550", parsed.hardwareName)
     assertEquals(4, parsed.coreCount)
+  }
+
+  @Test
+  fun `parseThermalTempCelsius handles millidegrees, decidegrees, and celsius`() {
+    assertEquals(42.5, HardwareDetector.parseThermalTempCelsius("42500")!!, 0.01)
+    assertEquals(41.2, HardwareDetector.parseThermalTempCelsius("412")!!, 0.01)
+    assertEquals(37.0, HardwareDetector.parseThermalTempCelsius("37")!!, 0.01)
+    assertNull(HardwareDetector.parseThermalTempCelsius("invalid"))
+  }
+
+  @Test
+  fun `game vote summary calculates percentage accurately`() {
+    val summary = GameVoteSummary(gameId = "genshin_impact", runsGreatCount = 3L, lagsCount = 1L)
+    assertEquals(4L, summary.totalVotes)
+    assertEquals(75, summary.runsGreatPercentage)
   }
 
   @Test

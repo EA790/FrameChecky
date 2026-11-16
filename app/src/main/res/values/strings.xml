@@ -6,4 +6,10 @@
     <string name="clear_search">Clear search</string>
     <string name="no_games_found">No matching games found</string>
     <string name="no_games_found_subtitle">Try another title or switch the FPS verdict filter.</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign out</string>
+    <string name="thermal_throttle_warning">Device is hot, performance may throttle</string>
+    <string name="free_ram_for_games">Free RAM for Games</string>
+    <string name="storage_speed_test">Run 50MB Test</string>
+    <string name="community_verdict_title">Community Verdict</string>
 </resources>

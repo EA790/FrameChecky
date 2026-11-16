@@ -7,7 +7,7 @@ val CarbonBlack = Color(0xFF121212)
 
 // 20% Elevated Surfaces & Cards
 val CharcoalCard = Color(0xFF1E1E1E)
-val ElevatedChip = Color(0xFF27272A)
+val ElevatedChip = Color(0xFF252528)
 val SubtleBorder = Color(0xFF2E2E32)
 
 // Text Hierarchy (White / Light Grey)
@@ -17,11 +17,11 @@ val TextMuted = Color(0xFF71717A)
 
 // 10% Accent & Status Tokens (Subtle Dark Blue / Emerald Green)
 val AccentBlue = Color(0xFF3B82F6)
-val AccentBlueDark = Color(0xFF1E3A5F)
+val AccentBlueDark = Color(0xFF172B47)
 val AccentGreen = Color(0xFF10B981)
-val AccentGreenDark = Color(0xFF064E3B)
+val AccentGreenDark = Color(0xFF0A2E23)
 
-// Status Tokens for Game Verdicts
+// Status Tokens for Game Verdicts & Thermals
 val VerdictPerfectColor = Color(0xFF10B981)
 val VerdictPerfectContainer = Color(0xFF0A2E23)
 
@@ -30,3 +30,6 @@ val VerdictPlayableContainer = Color(0xFF112642)
 
 val VerdictUnsupportedColor = Color(0xFFE11D48)
 val VerdictUnsupportedContainer = Color(0xFF35131E)
+
+val ThermalWarningColor = Color(0xFFF59E0B)
+val ThermalWarningContainer = Color(0xFF332208)

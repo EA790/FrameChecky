@@ -2,10 +2,18 @@ package com.example.hardware
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import com.example.model.DeviceSpecs
+import com.example.model.StorageBenchmarkResult
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class ParsedCpuInfo(
   val hardwareName: String,
@@ -33,8 +41,14 @@ class HardwareDetector(private val context: Context) {
 
     val totalRamBytes = memoryInfo.totalMem.coerceAtLeast(1L)
     val availRamBytes = memoryInfo.availMem.coerceAtLeast(0L)
+    val reservedThresholdBytes = memoryInfo.threshold.coerceAtLeast(0L)
+    val usableForGamesBytes = (availRamBytes - reservedThresholdBytes).coerceAtLeast(0L)
+
     val totalRamGb = bytesToGigabytes(totalRamBytes)
     val availableRamGb = bytesToGigabytes(availRamBytes)
+    val freeRamForGamesGb = bytesToGigabytes(usableForGamesBytes).coerceAtMost(totalRamGb)
+    val systemReservedRamGb =
+      (((totalRamGb - freeRamForGamesGb).coerceAtLeast(0.0)) * 10.0).roundToInt() / 10.0
 
     val glEsVersion = activityManager?.deviceConfigurationInfo?.glEsVersion ?: "3.0"
     val is64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
@@ -49,6 +63,9 @@ class HardwareDetector(private val context: Context) {
     )
     val compositeScore = ((cpuScore * 0.52) + (gpuScore * 0.48)).roundToInt()
 
+    val (tempCelsius, tempSource) = detectThermalCelsius()
+    val isThrottling = tempCelsius != null && tempCelsius > THERMAL_THROTTLE_THRESHOLD_C
+
     return DeviceSpecs(
       hardwareName = parsedCpu.hardwareName,
       cpuArchitecture = parsedCpu.architecture,
@@ -56,13 +73,94 @@ class HardwareDetector(private val context: Context) {
       maxFreqGhz = maxFreqGhz,
       totalRamGb = totalRamGb,
       availableRamGb = availableRamGb,
+      freeRamForGamesGb = freeRamForGamesGb,
+      systemReservedRamGb = systemReservedRamGb,
       totalRamBytes = totalRamBytes,
       glEsVersion = glEsVersion,
       cpuScore = cpuScore,
       gpuScore = gpuScore,
       compositeScore = compositeScore,
+      batteryTempCelsius = tempCelsius,
+      isThermalThrottling = isThrottling,
+      tempSourceLabel = tempSource,
       cpuInfoSourceDetail = parsedCpu.sourceDetail,
     )
+  }
+
+  suspend fun runStorageSpeedTest(sizeMb: Int = 50): StorageBenchmarkResult =
+    withContext(Dispatchers.IO) {
+      val targetSizeMb = sizeMb.coerceIn(10, 100)
+      val chunkSize = 1024 * 1024
+      val buffer = ByteArray(chunkSize) { index -> (index and 0xFF).toByte() }
+      val tempFile = File(context.cacheDir, "framecheck_io_bench.tmp")
+
+      try {
+        if (tempFile.exists()) tempFile.delete()
+
+        val writeStartNs = System.nanoTime()
+        FileOutputStream(tempFile).use { fos ->
+          repeat(targetSizeMb) {
+            fos.write(buffer)
+          }
+          fos.flush()
+          runCatching { fos.fd.sync() }
+        }
+        val writeElapsedSec = ((System.nanoTime() - writeStartNs).coerceAtLeast(1L)) / 1_000_000_000.0
+        val writeMbPerSec = ((targetSizeMb / writeElapsedSec) * 10.0).roundToInt() / 10.0
+
+        val readBuffer = ByteArray(chunkSize)
+        val readStartNs = System.nanoTime()
+        FileInputStream(tempFile).use { fis ->
+          while (fis.read(readBuffer) != -1) {
+            // Sequential read pass
+          }
+        }
+        val readElapsedSec = ((System.nanoTime() - readStartNs).coerceAtLeast(1L)) / 1_000_000_000.0
+        val readMbPerSec = ((targetSizeMb / readElapsedSec) * 10.0).roundToInt() / 10.0
+
+        val avgMbPerSec = (((writeMbPerSec + readMbPerSec) / 2.0) * 10.0).roundToInt() / 10.0
+        StorageBenchmarkResult(
+          writeSpeedMbPerSec = writeMbPerSec,
+          readSpeedMbPerSec = readMbPerSec,
+          avgSpeedMbPerSec = avgMbPerSec,
+          testSizeMb = targetSizeMb,
+        )
+      } finally {
+        runCatching { if (tempFile.exists()) tempFile.delete() }
+      }
+    }
+
+  private fun detectThermalCelsius(): Pair<Double?, String> {
+    val thermalPaths = listOf(
+      "/sys/class/thermal/thermal_zone0/temp",
+      "/sys/class/thermal/thermal_zone1/temp",
+      "/sys/class/power_supply/battery/temp",
+    )
+    for (path in thermalPaths) {
+      try {
+        val file = File(path)
+        if (file.exists() && file.canRead()) {
+          val parsed = parseThermalTempCelsius(file.readText())
+          if (parsed != null) {
+            return parsed to path.substringAfterLast("/sys/class/")
+          }
+        }
+      } catch (_: Exception) {
+        // Ignore SELinux-restricted thermal nodes
+      }
+    }
+
+    val batteryIntent = runCatching {
+      context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }.getOrNull()
+    val rawTenths = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+    if (rawTenths != null && rawTenths != Int.MIN_VALUE && rawTenths > 0) {
+      val celsius = ((rawTenths / 10.0) * 10.0).roundToInt() / 10.0
+      if (celsius in 0.0..120.0) {
+        return celsius to "BatteryManager"
+      }
+    }
+    return null to "Sensor unavailable"
   }
 
   private fun readProcCpuInfo(): String {
@@ -116,6 +214,19 @@ class HardwareDetector(private val context: Context) {
   }
 
   companion object {
+    const val THERMAL_THROTTLE_THRESHOLD_C = 40.0
+
+    fun parseThermalTempCelsius(raw: String): Double? {
+      val numeric = raw.trim().toDoubleOrNull() ?: return null
+      val celsius = when {
+        numeric > 1000.0 -> numeric / 1000.0
+        numeric > 150.0 -> numeric / 10.0
+        else -> numeric
+      }
+      val rounded = (celsius * 10.0).roundToInt() / 10.0
+      return rounded.takeIf { it in 0.0..120.0 }
+    }
+
     fun bytesToGigabytes(bytes: Long): Double {
       val gb = bytes / (1024.0 * 1024.0 * 1024.0)
       return (gb * 10.0).roundToInt() / 10.0

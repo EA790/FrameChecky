@@ -9,12 +9,24 @@ data class DeviceSpecs(
   val maxFreqGhz: Double?,
   val totalRamGb: Double,
   val availableRamGb: Double,
+  val freeRamForGamesGb: Double,
+  val systemReservedRamGb: Double,
   val totalRamBytes: Long,
   val glEsVersion: String,
   val cpuScore: Int,
   val gpuScore: Int,
   val compositeScore: Int,
+  val batteryTempCelsius: Double?,
+  val isThermalThrottling: Boolean,
+  val tempSourceLabel: String,
   val cpuInfoSourceDetail: String,
+)
+
+data class StorageBenchmarkResult(
+  val writeSpeedMbPerSec: Double,
+  val readSpeedMbPerSec: Double,
+  val avgSpeedMbPerSec: Double,
+  val testSizeMb: Int = 50,
 )
 
 @JsonClass(generateAdapter = true)

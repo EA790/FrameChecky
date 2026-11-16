@@ -39,7 +39,7 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `main screen scans hardware immediately and filters games by search`() {
+  fun `main screen shows hardware deep scan tiles, sign in button, and community verdict sheet`() {
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule
         .onAllNodesWithTag("hardware_telemetry_card")
@@ -47,9 +47,12 @@ class ExampleRobolectricTest {
         .isNotEmpty()
     }
 
+    composeTestRule.onNodeWithTag("google_sign_in_button").assertIsDisplayed()
     composeTestRule.onNodeWithTag("hardware_telemetry_card").assertIsDisplayed()
     composeTestRule.onNodeWithTag("cpu_cores_tile").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("thermal_tile").assertIsDisplayed()
     composeTestRule.onNodeWithTag("total_ram_tile").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("storage_speed_tile").assertIsDisplayed()
 
     composeTestRule.onNodeWithTag("game_search_input").performTextInput("Genshin")
     composeTestRule.waitForIdle()
@@ -59,6 +62,7 @@ class ExampleRobolectricTest {
 
     composeTestRule.onNodeWithTag("game_card_genshin_impact").performClick()
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag("close_detail_button").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("community_verdict_section").performScrollTo().assertIsDisplayed()
+    composeTestRule.onNodeWithTag("close_detail_button").performScrollTo().assertIsDisplayed()
   }
 }

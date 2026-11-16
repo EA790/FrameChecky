@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidGameVoteSummary(data, gameId) {
+      return data.gameId is string &&
+             data.gameId == gameId &&
+             data.gameId.size() >= 1 &&
+             data.gameId.size() <= 64 &&
+             data.runsGreatCount is int &&
+             data.runsGreatCount >= 0 &&
+             data.lagsCount is int &&
+             data.lagsCount >= 0 &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidUserVote(data, gameId, userId) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.gameId is string &&
+             data.gameId == gameId &&
+             data.gameId.size() >= 1 &&
+             data.gameId.size() <= 64 &&
+             data.verdict is string &&
+             (data.verdict == 'runs_great' || data.verdict == 'lags') &&
+             data.deviceSoc is string &&
+             data.deviceSoc.size() >= 1 &&
+             data.deviceSoc.size() <= 120 &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    match /game_votes/{gameId} {
+      allow get: if isSignedIn() && isValidId(gameId);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(gameId) &&
+                       incoming().keys().hasAll(['gameId', 'runsGreatCount', 'lagsCount', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['gameId', 'runsGreatCount', 'lagsCount', 'updatedAt']) &&
+                       isValidGameVoteSummary(incoming(), gameId) &&
+                       ((incoming().runsGreatCount == 1 && incoming().lagsCount == 0) ||
+                        (incoming().runsGreatCount == 0 && incoming().lagsCount == 1)) &&
+                       existsAfter(/databases/$(database)/documents/game_votes/$(gameId)/votes/$(request.auth.uid)) &&
+                       getAfter(/databases/$(database)/documents/game_votes/$(gameId)/votes/$(request.auth.uid)).data.userId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+                       isValidId(gameId) &&
+                       isValidGameVoteSummary(incoming(), gameId) &&
+                       incoming().gameId == existing().gameId &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['runsGreatCount', 'lagsCount', 'updatedAt']) &&
+                       incoming().runsGreatCount >= existing().runsGreatCount - 1 &&
+                       incoming().runsGreatCount <= existing().runsGreatCount + 1 &&
+                       incoming().lagsCount >= existing().lagsCount - 1 &&
+                       incoming().lagsCount <= existing().lagsCount + 1 &&
+                       (incoming().runsGreatCount + incoming().lagsCount) >= (existing().runsGreatCount + existing().lagsCount) &&
+                       (incoming().runsGreatCount + incoming().lagsCount) <= (existing().runsGreatCount + existing().lagsCount) + 1 &&
+                       existsAfter(/databases/$(database)/documents/game_votes/$(gameId)/votes/$(request.auth.uid)) &&
+                       getAfter(/databases/$(database)/documents/game_votes/$(gameId)/votes/$(request.auth.uid)).data.userId == request.auth.uid;
+
+      allow delete: if false;
+
+      match /votes/{userId} {
+        allow get: if isSignedIn() && isValidId(gameId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(gameId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(gameId) &&
+                         isValidId(userId) &&
+                         request.auth.uid == userId &&
+                         incoming().keys().hasAll(['userId', 'gameId', 'verdict', 'deviceSoc', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'gameId', 'verdict', 'deviceSoc', 'createdAt', 'updatedAt']) &&
+                         isValidUserVote(incoming(), gameId, userId) &&
+                         existsAfter(/databases/$(database)/documents/game_votes/$(gameId));
+
+        allow update: if isSignedIn() &&
+                         isValidId(gameId) &&
+                         isValidId(userId) &&
+                         request.auth.uid == userId &&
+                         isValidUserVote(incoming(), gameId, userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().gameId == existing().gameId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['verdict', 'deviceSoc', 'updatedAt']) &&
+                         existsAfter(/databases/$(database)/documents/game_votes/$(gameId));
+
+        allow delete: if false;
+      }
+    }
+  }
+}
